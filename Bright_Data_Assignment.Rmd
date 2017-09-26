@@ -1,0 +1,171 @@
+---
+title: "Bright Data Assignment"
+output: html_notebook
+---
+
+Hello! Welcome to my R Notebook. This is a file designed entirely in R and can have outputs in multiple formats. What makes this special is that you can see my code, workflow, answers, and graphs all in one place.
+
+For this assignment I asked and answered other questions besides the assigned ones to garner more insight from this data set. Also note if you want to see just my answers, graphs, and reasoning you can toggle the top right "Code"  hide my R code at any time.
+
+Before we get to the analysis though, a bit of house cleaning. I'm going to load all the packages I need for analysis and clean the data so I can work with it properly.  
+
+
+
+
+
+```{r}
+#Package loading
+library(readr)
+library(tidyverse)
+library(lubridate)
+
+#Loading Data
+Bright_Users <-read_csv("data_analyst_intern_test_data.csv")
+
+#Show How many users signed up for the Month of April.
+dim(Bright_Users)
+
+Bright_Users <- separate(Bright_Users, start_date, c("Date", "Time"), sep = " " )
+Bright_Users <- mutate(Bright_Users, Weekday = wday(Date, label = T))
+TimesD <- filter(Bright_Users, Time >= "00:00:00 AM" & Time <="12:59:59")
+TimesD$Time <- format(strptime(TimesD$Time, format='%H:%M:%S'), '%r')
+TimesN <- filter(Bright_Users, Time >= "13:00:00 PM" & Time <= "24:59:59 PM")
+TimesN$Time <- format(strptime(TimesN$Time, format='%H:%M:%S'), '%r')
+Bright_Users$Time <- format(strptime(Bright_Users$Time, format='%H:%M:%S'), '%r')
+Bright_Users$Date <- ymd(Bright_Users$Date)
+Bright_Users <- Bright_Users[,c(1,2,5,3,4)]
+head(Bright_Users)
+```
+
+Now all the data is collected in a data frame called Bright_Users that can manipulated for inaights. Since the people who unsubscribed are also important for our analysis, they'll get their own data frame with a few tweaks. 
+
+```{r}
+# Creating unsubscribers data and making it easier to read
+Unsubscribers <- filter(Bright_Users, end_date != "NULL")
+Unsubscribers <- separate(Unsubscribers, end_date, c("Date_Left", "Time_Left"), sep = " ")
+Unsubscribers$Time_Left <- format(strptime(Unsubscribers$Time_Left, format='%H:%M:%S'), '%r')
+Unsubscribers$Date_Left<- ymd(Unsubscribers$Date_Left)
+diff_days <- difftime(Unsubscribers$Date_Left, Unsubscribers $Date, units = c('days'))
+Unsubscribers <-mutate(Unsubscribers,  days_unsub = diff_days)
+Unsubscribers <- select(Unsubscribers, id, Date, Weekday, Time, Date_Left, days_unsub)
+head(Unsubscribers)
+
+```
+
+Ok so the data is clean enough for now. Let's answers these questions shall we?
+
+User Acquisition
+
+1. How many users signed up per week?
+
+There were about 4 weeks in April so we'll divvy up the Bright_Users into 4 smaller data frames and count the users.
+
+```{r}
+Wk1 <- filter(Bright_Users, Date >= "2017-04-1" & Date <= "2017-04-07") 
+dim(Wk1)
+Wk2 <- filter(Bright_Users, Date >= "2017-04-8" & Date <= "2017-04-14") 
+dim(Wk2);
+Wk3 <- filter(Bright_Users, Date >= "2017-04-15" & Date <= "2017-04-21")
+dim(Wk3);
+Wk4 <- filter(Bright_Users, Date >= "2017-04-22" & Date <= "2017-04-27")
+dim(Wk4)
+```
+
+So week 1 had 7364 users, week 2 had 6874, week 3 had 9805, and week 4 had 5956 users.
+
+2. Which day are users most likely to sign up?
+
+Well there are 7 days in a week so 1/7 chance for choosing any day. That's just about 14%.  Let's visualize all signups by day and see what we find.
+```{r}
+ggplot(Bright_Users, aes( x = Weekday)) + geom_bar(fill = "violet") 
+Bright_Table <- table(Bright_Users$Weekday)
+Bright_Table
+prop <- prop.table(Bright_Table) * 100
+prop
+```
+
+Wow, throughout the whole month of April the most signups have unquestionably been on Tuesday. Over 10,000 signups on this day with Monday about half as much. To be specific, 10,148 people signed up on Tuesday and represents almost 34% percent of the total sign ups. With this, it is fair to say that Tuesday is the most popular day for sign ups.
+
+Bonus: What times period are most people shinging up?
+I extracted the AM and PM times from the Bright Users into 2 Dataframes: TimesD for day and TimesN for Night or  asfternoon in this case. Lets check out their respective numbers.
+
+```{r}
+dim(TimesD)
+dim(TimesN)
+```
+
+ According to this, Your new users are afternoon people.  
+3. How can Bright act on this data?
+
+Answers: Evaluate the top 3 marketing channels that new users come from and evaluate the content that is produced on those channels. See if you can re purpose what you have for them or do a running theme for Wednesdays. There is a significant drop off from the middle of the work week. Perhaps a "hump day"" special? Might be a good mood lifter. Also maybe want to look up the states or time zones the current users are in. Perhaps Bright is more popular on the West Coast?
+
+User Retention
+
+1. How many users do we keep week to week?
+So I did this in 2 slightly different ways. First how many people leave the same week they sign up?
+
+```{r}
+week1unsub <- filter(Unsubscribers, Date_Left >= "2017-04-01" & Date_Left <= "2017-04-07")
+dim(week1unsub)
+week2unsub <- filter(Unsubscribers, Date_Left >= "2017-04-08" & Date_Left <= "2017-04-14")
+dim(week2unsub)
+week3unsub <- filter(Unsubscribers, Date_Left >= "2017-04-15" & Date_Left <= "2017-04-21")
+dim(week3unsub)
+week4unsub <- filter(Unsubscribers, Date_Left >= "2017-04-22" & Date_Left <= "2017-04-27")
+dim(week4unsub)  
+  
+```
+
+In orders from weeks 1 through 4, Bright lost 901, 851, 411, & 178 users during their respective weeks. This means that means you keep over 88% of your users during their respective weeks. 
+
+How many users that sign up unsubscribe at some point?
+```{r}
+week1unsubo <- filter(Unsubscribers, Date >= "2017-04-01" & Date <= "2017-04-7")
+dim(week1unsubo)
+week2unsubo <- filter(Unsubscribers, Date >= "2017-04-08" & Date <= "2017-04-14")
+dim(week2unsubo)
+week3unsubo <- filter(Unsubscribers, Date >= "2017-04-15" & Date <= "2017-04-21")
+dim(week3unsubo)
+week4unsubo <- filter(Unsubscribers, Date >= "2017-04-22" & Date <= "2017-04-27")
+dim(week4unsubo)
+```
+Now Of people who signed up during weeks 1 through 4 1812, 1928, 2436, and 730 users eventually unsubscribe at some point in time. This means you keep over 70% of the people who sign up each week over a period of time. Something to keep note of.
+
+As for the month of April, Bright retained 77%  of users that signed up. Pretty good.
+
+
+
+2. If a user unsubscribes, how long does it take them to do so? 
+ What's the range of days look like?
+```{r}
+
+unsub_num <- as.numeric(Unsubscribers$days_unsub)
+ggplot(Unsubscribers, aes( x = unsub_num)) + geom_histogram(fill = "dark blue") 
+median(Unsubscribers$days_unsub)
+summary(unsub_num)
+IQR1 <- 18
+Outlier1 <- 0-1.5*IQR1
+Outlier2 <- 18+1.5*IQR1
+
+Outlier1
+Outlier2
+
+```
+
+
+
+According to the data, about 50% of your users leave before 5 days. Over 3,000 on the very same day. Ouch  that's really concerning. From the histogram you can tell that it is skewed heavily to the right and most of your users who leave, leave very early. And as for outliers, it would be any users that unsubscribed after 45 days. There are about 100 who have left after a month.
+
+3. How should Bright act on this data?
+
+You keep large percentages of those who sign up So you should keep it up. But in terms of those who leave, survey them as to why they left so soon.  That information might help you derive better content that makes them stick around and really grabs them. And for those who leave, stay on brand and be cheerful. Perhaps send a video from the founders with a positve message? Or a puppy?You can also just send them something if you already haven't that lets them know you're happy they give you a shot, you wish them luck, and that the door is always open.
+
+In terms of other interesting questions. How are signups possibly driven by our news cycle? Is negative news related to the White House causing large amounts of users to sign up. 
+
+When are you users most active? When do they respond back to you.
+
+What industries do Bright users work in? Would be helpful to cater certain messages to those in high stress fields?
+
+I'd need survey data, user data, and to observe possible hourly spikes when breaking  news is announced. Thanks for reading!  
+
+End
